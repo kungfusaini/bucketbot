@@ -3,7 +3,6 @@
 import os
 import sys
 import requests
-from pathlib import Path
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
@@ -11,28 +10,16 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 WAITING_FOR_CONTENT = 1
 
 def load_config():
-    """Load API key and bot token from .env file"""
-    env_file = Path(__file__).parent / '.env'
-    if not env_file.exists():
-        print("Error: .env file not found. Please create it with BOT_TOKEN=your_token and WELL_API_KEY=your_key")
-        sys.exit(1)
-    
-    bot_token = None
-    api_key = None
-    
-    with open(env_file) as f:
-        for line in f:
-            if line.startswith('BOT_TOKEN='):
-                bot_token = line.split('=', 1)[1].strip()
-            elif line.startswith('WELL_API_KEY='):
-                api_key = line.split('=', 1)[1].strip()
+    """Load API key and bot token from environment variables"""
+    bot_token = os.getenv('BUCKETBOT_TOKEN')
+    api_key = os.getenv('WELL_API_KEY')
     
     if not bot_token:
-        print("Error: BOT_TOKEN not found in .env file")
+        print("Error: BUCKETBOT_TOKEN environment variable not set")
         sys.exit(1)
     
     if not api_key:
-        print("Error: WELL_API_KEY not found in .env file")
+        print("Error: WELL_API_KEY environment variable not set")
         sys.exit(1)
     
     return bot_token, api_key
