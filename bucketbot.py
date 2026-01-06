@@ -9,6 +9,46 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 # States for conversation
 WAITING_FOR_CONTENT = 1
 
+# Authorized user ID from environment
+TELEGRAM_ID = os.getenv('TELEGRAM_ID')
+if not TELEGRAM_ID:
+    print("Error: TELEGRAM_ID environment variable not set")
+    sys.exit(1)
+AUTHORIZED_USER_ID = int(TELEGRAM_ID)
+
+def authorize_user(handler_func):
+    """Decorator to authorize user before running handler"""
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        user_id = None
+        if update.effective_user:
+            user_id = update.effective_user.id
+        elif update.message and update.message.from_user:
+            user_id = update.message.from_user.id
+        elif update.callback_query and update.callback_query.from_user:
+            user_id = update.callback_query.from_user.id
+        
+        if user_id != AUTHORIZED_USER_ID:
+            try:
+                if update.message:
+                    await update.message.reply_text(
+                        "❌ Access denied. This bot is private and not available for public use.",
+                        parse_mode='Markdown'
+                    )
+                elif update.callback_query:
+                    await update.callback_query.answer(
+                        "❌ Access denied. This bot is private and not available for public use.",
+                        show_alert=True
+                    )
+            except:
+                pass
+            if hasattr(handler_func, '__name__') and 'ConversationHandler' in handler_func.__name__:
+                from telegram.ext import ConversationHandler
+                return ConversationHandler.END
+            return
+        
+        return await handler_func(update, context, *args, **kwargs)
+    return wrapper
+
 def load_config():
     """Load API key and bot token from environment variables"""
     bot_token = os.getenv('BUCKETBOT_TOKEN')
@@ -48,6 +88,7 @@ TYPE_KEYBOARD = ReplyKeyboardMarkup(
     one_time_keyboard=False
 )
 
+@authorize_user
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start the bot and show type selection"""
     await update.message.reply_text(
@@ -81,6 +122,7 @@ async def handle_type_selection(update: Update, context: ContextTypes.DEFAULT_TY
     )
     return WAITING_FOR_CONTENT
 
+@authorize_user
 async def handle_content(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle content entry and post to API"""
     content = update.message.text.strip()
@@ -135,6 +177,7 @@ async def handle_content(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data.clear()
     return WAITING_FOR_CONTENT
 
+@authorize_user
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show help message"""
     await update.message.reply_text(
@@ -151,6 +194,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         parse_mode='Markdown'
     )
 
+@authorize_user
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancel the current operation"""
     await update.message.reply_text(
